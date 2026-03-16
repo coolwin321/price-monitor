@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Add Hotel Watch - Price Monitor{% endblock %}
+
+{% block content %}
+<h2>Add Hotel Watch</h2>
+
+<article>
+    <form method="POST" action="/hotels/new">
+        <div class="grid">
+            <label>
+                Hotel Name
+                <input type="text" name="hotel_name" placeholder="e.g. Hilton Garden Inn" required>
+            </label>
+            <label>
+                Location
+                <input type="text" name="location" placeholder="e.g. Tokyo Shinjuku" required>
+            </label>
+        </div>
+
+        <div class="grid">
+            <label>
+                Check-in Date
+                <input type="date" name="checkin_date" required>
+            </label>
+            <label>
+                Check-out Date
+                <input type="date" name="checkout_date" required>
+            </label>
+        </div>
+
+        <div class="grid">
+            <label>
+                Alert Threshold Price (per night)
+                <input type="number" name="threshold_price" placeholder="e.g. 100" step="1" min="1">
+            </label>
+            <label>
+                Currency
+                <select name="currency">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="HKD">HKD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SGD">SGD</option>
+                    <option value="CNY">CNY</option>
+                    <option value="THB">THB</option>
+                </select>
+            </label>
+        </div>
+
+        <button type="submit">Add Hotel Watch</button>
+    </form>
+</article>
+{% endblock %}

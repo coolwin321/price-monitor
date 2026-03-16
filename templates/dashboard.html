@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Price Monitor{% endblock %}
+
+{% block content %}
+<h2>Dashboard</h2>
+
+<div class="grid">
+    <article>
+        <header>Flight Watches ({{ flights|length }})</header>
+        {% if flights %}
+        <div class="overflow-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Route</th>
+                        <th>Dates</th>
+                        <th>Threshold</th>
+                        <th>Latest Price</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in flights %}
+                    <tr>
+                        <td><strong>{{ f.origin }} → {{ f.destination }}</strong></td>
+                        <td>{{ f.departure_date }}{% if f.return_date %} → {{ f.return_date }}{% endif %}</td>
+                        <td>{{ f.currency }} {{ f.threshold_price or '—' }}</td>
+                        <td class="{% if f.latest_price and f.threshold_price and f.latest_price <= f.threshold_price %}price-good{% elif f.latest_price %}price-high{% endif %}">
+                            {% if f.latest_price %}{{ f.currency }} {{ f.latest_price|round(0)|int }}{% else %}—{% endif %}
+                        </td>
+                        <td>{{ f.latest_source or '—' }}</td>
+                        <td>
+                            <a href="/watches/flight/{{ f.id }}" role="button" class="outline small">View</a>
+                            <button class="outline small delete-btn" data-type="flight" data-id="{{ f.id }}">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No flight watches yet. <a href="/flights/new">Add one</a></p>
+        {% endif %}
+    </article>
+</div>
+
+<div class="grid">
+    <article>
+        <header>Hotel Watches ({{ hotels|length }})</header>
+        {% if hotels %}
+        <div class="overflow-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Hotel</th>
+                        <th>Location</th>
+                        <th>Dates</th>
+                        <th>Threshold</th>
+                        <th>Latest Price</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in hotels %}
+                    <tr>
+                        <td><strong>{{ h.hotel_name }}</strong></td>
+                        <td>{{ h.location }}</td>
+                        <td>{{ h.checkin_date }} → {{ h.checkout_date }}</td>
+                        <td>{{ h.currency }} {{ h.threshold_price or '—' }}</td>
+                        <td class="{% if h.latest_price and h.threshold_price and h.latest_price <= h.threshold_price %}price-good{% elif h.latest_price %}price-high{% endif %}">
+                            {% if h.latest_price %}{{ h.currency }} {{ h.latest_price|round(0)|int }}{% else %}—{% endif %}
+                        </td>
+                        <td>{{ h.latest_source or '—' }}</td>
+                        <td>
+                            <a href="/watches/hotel/{{ h.id }}" role="button" class="outline small">View</a>
+                            <button class="outline small delete-btn" data-type="hotel" data-id="{{ h.id }}">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No hotel watches yet. <a href="/hotels/new">Add one</a></p>
+        {% endif %}
+    </article>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('Deactivate this watch?')) return;
+        const type = btn.dataset.type === 'flight' ? 'flights' : 'hotels';
+        const resp = await fetch(`/api/${type}/${btn.dataset.id}`, { method: 'DELETE' });
+        if (resp.ok) location.reload();
+    });
+});
+</script>
+{% endblock %}

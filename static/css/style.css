@@ -1,0 +1,49 @@
+.price-good {
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.price-high {
+    color: #c62828;
+    font-weight: bold;
+}
+
+.overflow-auto {
+    overflow-x: auto;
+}
+
+button.small, [role="button"].small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+.status-ok {
+    background-color: #c8e6c9;
+    color: #2e7d32;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+.status-warning {
+    background-color: #fff3e0;
+    color: #e65100;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+.status-disabled {
+    background-color: #ffcdd2;
+    color: #c62828;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1rem;
+}
+
+dt {
+    font-weight: bold;
+}

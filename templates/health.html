@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Scraper Health - Price Monitor{% endblock %}
+
+{% block content %}
+<h2>Scraper Health</h2>
+
+<article>
+    {% if healths %}
+    <table>
+        <thead>
+            <tr>
+                <th>Scraper</th>
+                <th>Status</th>
+                <th>Last Success</th>
+                <th>Last Failure</th>
+                <th>Consecutive Failures</th>
+                <th>Last Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in healths %}
+            <tr>
+                <td><strong>{{ h.scraper_name }}</strong></td>
+                <td>
+                    {% if h.is_disabled %}
+                    <mark class="status-disabled">Disabled</mark>
+                    {% elif h.consecutive_failures > 0 %}
+                    <mark class="status-warning">Degraded</mark>
+                    {% else %}
+                    <mark class="status-ok">OK</mark>
+                    {% endif %}
+                </td>
+                <td>{{ h.last_success_at or '—' }}</td>
+                <td>{{ h.last_failure_at or '—' }}</td>
+                <td>{{ h.consecutive_failures }}</td>
+                <td><small>{{ (h.last_error or '—')[:100] }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No scraper health data yet. Data will appear after the first scrape cycle.</p>
+    {% endif %}
+</article>
+{% endblock %}

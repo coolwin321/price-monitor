@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Add Flight Watch - Price Monitor{% endblock %}
+
+{% block content %}
+<h2>Add Flight Watch</h2>
+
+<article>
+    <form method="POST" action="/flights/new">
+        <div class="grid">
+            <label>
+                Origin (IATA code)
+                <input type="text" name="origin" placeholder="e.g. HKG" maxlength="5" required>
+            </label>
+            <label>
+                Destination (IATA code)
+                <input type="text" name="destination" placeholder="e.g. NRT" maxlength="5" required>
+            </label>
+        </div>
+
+        <div class="grid">
+            <label>
+                Departure Date
+                <input type="date" name="departure_date" required>
+            </label>
+            <label>
+                Return Date (optional)
+                <input type="date" name="return_date">
+            </label>
+        </div>
+
+        <div class="grid">
+            <label>
+                Alert Threshold Price
+                <input type="number" name="threshold_price" placeholder="e.g. 250" step="1" min="1">
+            </label>
+            <label>
+                Currency
+                <select name="currency">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="HKD">HKD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SGD">SGD</option>
+                    <option value="CNY">CNY</option>
+                    <option value="THB">THB</option>
+                </select>
+            </label>
+        </div>
+
+        <button type="submit">Add Flight Watch</button>
+    </form>
+</article>
+{% endblock %}

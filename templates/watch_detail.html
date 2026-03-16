@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Price Monitor{% endblock %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+<div class="grid">
+    <article>
+        <header>Details</header>
+        <dl>
+            {% if watch_type == 'flight' %}
+            <dt>Route</dt>
+            <dd>{{ watch.origin }} → {{ watch.destination }}</dd>
+            <dt>Departure</dt>
+            <dd>{{ watch.departure_date }}</dd>
+            {% if watch.return_date %}
+            <dt>Return</dt>
+            <dd>{{ watch.return_date }}</dd>
+            {% endif %}
+            {% else %}
+            <dt>Hotel</dt>
+            <dd>{{ watch.hotel_name }}</dd>
+            <dt>Location</dt>
+            <dd>{{ watch.location }}</dd>
+            <dt>Check-in</dt>
+            <dd>{{ watch.checkin_date }}</dd>
+            <dt>Check-out</dt>
+            <dd>{{ watch.checkout_date }}</dd>
+            {% endif %}
+            <dt>Currency</dt>
+            <dd>{{ watch.currency }}</dd>
+            <dt>Status</dt>
+            <dd>{{ "Active" if watch.is_active else "Inactive" }}</dd>
+        </dl>
+
+        <form method="POST" action="/watches/{{ watch_type }}/{{ watch.id }}/update">
+            <label>
+                Threshold Price
+                <input type="number" name="threshold_price" value="{{ watch.threshold_price or '' }}" step="1" min="1">
+            </label>
+            <div class="grid">
+                <button type="submit">Update Threshold</button>
+                <button type="button" id="toggle-btn" class="outline"
+                    data-active="{{ 'true' if watch.is_active else 'false' }}">
+                    {{ "Deactivate" if watch.is_active else "Activate" }}
+                </button>
+            </div>
+        </form>
+    </article>
+
+    <article>
+        <header>Price History</header>
+        <canvas id="priceChart" height="200"></canvas>
+    </article>
+</div>
+
+<article>
+    <header>Recent Prices</header>
+    {% if prices %}
+    <div class="overflow-auto">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Source</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in prices %}
+                <tr>
+                    <td>{{ p.scraped_at }}</td>
+                    <td>{{ p.source }}</td>
+                    <td>{{ p.currency }} {{ p.price|round(0)|int }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No price data yet. Prices will appear after the next scrape cycle.</p>
+    {% endif %}
+</article>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/charts.js"></script>
+<script>
+    const priceData = {{ prices_json|safe }};
+    if (priceData.length > 0) {
+        renderPriceChart('priceChart', priceData, {{ watch.threshold_price or 'null' }});
+    }
+
+    document.getElementById('toggle-btn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('toggle-btn');
+        const isActive = btn.dataset.active === 'true';
+        const type = '{{ watch_type }}' === 'flight' ? 'flights' : 'hotels';
+        const resp = await fetch(`/api/${type}/{{ watch.id }}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: !isActive })
+        });
+        if (resp.ok) location.reload();
+    });
+</script>
+{% endblock %}
