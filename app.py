@@ -171,6 +171,16 @@ def create_app():
                 .all()
             )
 
+            # Parse raw_details JSON so templates can access details_parsed
+            for p in prices:
+                if p.raw_details:
+                    try:
+                        p.details_parsed = json.loads(p.raw_details)
+                    except (json.JSONDecodeError, TypeError):
+                        p.details_parsed = None
+                else:
+                    p.details_parsed = None
+
             prices_json = json.dumps([
                 {
                     "source": p.source,

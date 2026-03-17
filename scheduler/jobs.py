@@ -35,7 +35,7 @@ def _check_flight_watch(watch_id: int, origin: str, dest: str, dep: str, ret: st
     from alerts.telegram import evaluate_and_alert_flight_sync
 
     try:
-        results = search_flights(origin, dest, dep, ret)
+        results = search_flights(origin, dest, dep, ret, currency=currency)
         if results:
             _store_prices("flight", watch_id, results)
             cheapest = min(results, key=lambda r: r.price)
@@ -60,7 +60,7 @@ def _check_hotel_watch(watch_id: int, name: str, loc: str, checkin: str, checkou
     from alerts.telegram import evaluate_and_alert_hotel_sync
 
     try:
-        results = search_hotels(name, loc, checkin, checkout)
+        results = search_hotels(name, loc, checkin, checkout, currency=currency)
         if results:
             _store_prices("hotel", watch_id, results)
             cheapest = min(results, key=lambda r: r.price)

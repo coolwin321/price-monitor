@@ -65,22 +65,45 @@
                 <tr>
                     <th>Date</th>
                     <th>Source</th>
+                    {% if watch_type == 'flight' %}
+                    <th>Details</th>
+                    {% endif %}
                     <th>Price</th>
+                    <th>Link</th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in prices %}
+                {% set details = p.details_parsed %}
                 <tr>
-                    <td>{{ p.scraped_at }}</td>
-                    <td>{{ p.source }}</td>
-                    <td>{{ p.currency }} {{ p.price|round(0)|int }}</td>
+                    <td>{{ p.scraped_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><strong>{{ p.source }}</strong></td>
+                    {% if watch_type == 'flight' %}
+                    <td>
+                        {% if details %}
+                        <small>
+                            {% if details.get('flight_numbers') %}{{ details.flight_numbers }}{% endif %}
+                            {% if details.get('duration_label') %} · {{ details.duration_label }}{% endif %}
+                            {% if details.get('departure_time') and details.get('arrival_time') %}
+                            <br>{{ details.departure_time }} → {{ details.arrival_time }}
+                            {% endif %}
+                        </small>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                    <td><strong>{{ p.currency }} {{ p.price|round(0)|int }}</strong></td>
+                    <td>
+                        {% if details and details.get('booking_url') %}
+                        <a href="{{ details.booking_url }}" target="_blank" rel="noopener" role="button" class="outline small">Book</a>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% else %}
-    <p>No price data yet. Prices will appear after the next scrape cycle.</p>
+    <p>No price data yet. Prices will appear after the next check or click "Check Price Now".</p>
     {% endif %}
 </article>
 {% endblock %}
@@ -100,9 +123,9 @@
         btn.setAttribute('aria-busy', 'true');
         const resp = await fetch(`/api/scrape-now/{{ watch_type }}/{{ watch.id }}`, { method: 'POST' });
         if (resp.ok) {
-            btn.textContent = 'Started! Refreshing in 30s...';
+            btn.textContent = 'Started! Refreshing in 15s...';
             btn.removeAttribute('aria-busy');
-            setTimeout(() => location.reload(), 30000);
+            setTimeout(() => location.reload(), 15000);
         } else {
             btn.textContent = 'Failed';
             btn.removeAttribute('aria-busy');
