@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import Config
 from db.database import init_db, SessionLocal
-from db.models import FlightWatch, HotelWatch, PriceRecord, ScraperHealth
+from db.models import FlightWatch, HotelWatch, PriceRecord
 from api.routes_flights import flights_bp
 from api.routes_hotels import hotels_bp
 from api.routes_prices import prices_bp
@@ -75,15 +75,25 @@ def create_app():
                     d["latest_source"] = None
                 hotel_data.append(d)
 
-            return render_template("dashboard.html", flights=flight_data, hotels=hotel_data)
+            total_watches = len(flight_data) + len(hotel_data)
+            return render_template("dashboard.html", flights=flight_data, hotels=hotel_data,
+                                   total_watches=total_watches, max_watches=Config.MAX_WATCHES)
         finally:
             session.close()
+
+    def _active_watch_count(session):
+        return (session.query(FlightWatch).filter_by(is_active=True).count() +
+                session.query(HotelWatch).filter_by(is_active=True).count())
 
     @app.route("/flights/new", methods=["GET", "POST"])
     def add_flight():
         if request.method == "POST":
             session = SessionLocal()
             try:
+                if _active_watch_count(session) >= Config.MAX_WATCHES:
+                    flash(f"Maximum {Config.MAX_WATCHES} active watches allowed. Delete one first.", "error")
+                    return redirect(url_for("add_flight"))
+
                 watch = FlightWatch(
                     origin=request.form["origin"].upper().strip(),
                     destination=request.form["destination"].upper().strip(),
@@ -113,6 +123,10 @@ def create_app():
         if request.method == "POST":
             session = SessionLocal()
             try:
+                if _active_watch_count(session) >= Config.MAX_WATCHES:
+                    flash(f"Maximum {Config.MAX_WATCHES} active watches allowed. Delete one first.", "error")
+                    return redirect(url_for("add_hotel"))
+
                 watch = HotelWatch(
                     hotel_name=request.form["hotel_name"].strip(),
                     location=request.form["location"].strip(),
@@ -200,12 +214,55 @@ def create_app():
         finally:
             session.close()
 
-    @app.route("/health")
-    def health_page():
+    @app.route("/status")
+    def status_page():
         session = SessionLocal()
         try:
-            healths = session.query(ScraperHealth).all()
-            return render_template("health.html", healths=healths)
+            flights = session.query(FlightWatch).filter_by(is_active=True).all()
+            hotels = session.query(HotelWatch).filter_by(is_active=True).all()
+
+            watch_statuses = []
+            for w in flights:
+                latest = (
+                    session.query(PriceRecord)
+                    .filter_by(watch_type="flight", watch_id=w.id)
+                    .order_by(PriceRecord.scraped_at.desc())
+                    .first()
+                )
+                count = session.query(PriceRecord).filter_by(watch_type="flight", watch_id=w.id).count()
+                watch_statuses.append({
+                    "type": "Flight",
+                    "name": f"{w.origin} -> {w.destination}",
+                    "last_check": latest.scraped_at if latest else None,
+                    "last_price": f"{latest.currency} {latest.price:.0f}" if latest else None,
+                    "total_records": count,
+                })
+
+            for w in hotels:
+                latest = (
+                    session.query(PriceRecord)
+                    .filter_by(watch_type="hotel", watch_id=w.id)
+                    .order_by(PriceRecord.scraped_at.desc())
+                    .first()
+                )
+                count = session.query(PriceRecord).filter_by(watch_type="hotel", watch_id=w.id).count()
+                watch_statuses.append({
+                    "type": "Hotel",
+                    "name": w.hotel_name,
+                    "last_check": latest.scraped_at if latest else None,
+                    "last_price": f"{latest.currency} {latest.price:.0f}" if latest else None,
+                    "total_records": count,
+                })
+
+            serpapi_configured = bool(Config.SERPAPI_KEY)
+            telegram_configured = bool(Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID)
+
+            return render_template("status.html",
+                                   watches=watch_statuses,
+                                   serpapi_configured=serpapi_configured,
+                                   telegram_configured=telegram_configured,
+                                   interval=Config.SCRAPE_INTERVAL_HOURS,
+                                   max_watches=Config.MAX_WATCHES)
         finally:
             session.close()
 
@@ -213,22 +270,17 @@ def create_app():
 
 
 def start_scheduler():
-    from datetime import timedelta
-    from scheduler.jobs import check_all_flights, check_all_hotels, health_check, cleanup_old_prices
+    from scheduler.jobs import check_all_watches, cleanup_old_prices
 
     scheduler = BackgroundScheduler()
     interval = Config.SCRAPE_INTERVAL_HOURS
 
-    # next_run_time=now fires immediately on startup instead of waiting one full interval
-    scheduler.add_job(check_all_flights, "interval", hours=interval, id="check_flights",
+    scheduler.add_job(check_all_watches, "interval", hours=interval, id="check_all",
                       next_run_time=datetime.now())
-    scheduler.add_job(check_all_hotels, "interval", hours=interval, id="check_hotels",
-                      next_run_time=datetime.now() + timedelta(minutes=2))
-    scheduler.add_job(health_check, "interval", hours=1, id="health_check")
     scheduler.add_job(cleanup_old_prices, "cron", hour=3, id="cleanup")
 
     scheduler.start()
-    logger.info(f"Scheduler started: scraping every {interval}h. First flight check NOW, hotels in 2min.")
+    logger.info(f"Scheduler started: checking prices every {interval}h (twice daily). First check NOW.")
     return scheduler
 
 

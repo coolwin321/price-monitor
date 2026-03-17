@@ -4,6 +4,7 @@
 
 {% block content %}
 <h2>Dashboard</h2>
+<p>Watches: {{ total_watches }}/{{ max_watches }}{% if total_watches >= max_watches %} <small>(limit reached — delete a watch to add more)</small>{% endif %}</p>
 
 <div class="grid">
     <article>

@@ -2,8 +2,9 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
+from config import Config
 from db.database import SessionLocal
-from db.models import HotelWatch, PriceRecord
+from db.models import FlightWatch, HotelWatch, PriceRecord
 
 hotels_bp = Blueprint("hotels", __name__, url_prefix="/api/hotels")
 
@@ -23,6 +24,11 @@ def create_hotel():
     data = request.json
     session = SessionLocal()
     try:
+        total = (session.query(FlightWatch).filter_by(is_active=True).count() +
+                 session.query(HotelWatch).filter_by(is_active=True).count())
+        if total >= Config.MAX_WATCHES:
+            return jsonify({"error": f"Maximum {Config.MAX_WATCHES} active watches allowed"}), 400
+
         watch = HotelWatch(
             hotel_name=data["hotel_name"],
             location=data["location"],

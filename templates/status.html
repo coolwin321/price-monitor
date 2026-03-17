@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}API Status - Price Monitor{% endblock %}
+
+{% block content %}
+<h2>API Status</h2>
+
+<article>
+    <header>Configuration</header>
+    <table>
+        <tbody>
+            <tr>
+                <td><strong>SerpAPI</strong></td>
+                <td>{% if serpapi_configured %}<mark class="status-ok">Configured</mark>{% else %}<mark class="status-bad">Not configured</mark>{% endif %}</td>
+            </tr>
+            <tr>
+                <td><strong>Telegram Alerts</strong></td>
+                <td>{% if telegram_configured %}<mark class="status-ok">Configured</mark>{% else %}<mark class="status-bad">Not configured</mark>{% endif %}</td>
+            </tr>
+            <tr>
+                <td><strong>Check Interval</strong></td>
+                <td>Every {{ interval }} hours (twice daily)</td>
+            </tr>
+            <tr>
+                <td><strong>Watch Limit</strong></td>
+                <td>{{ watches|length }}/{{ max_watches }}</td>
+            </tr>
+        </tbody>
+    </table>
+</article>
+
+<article>
+    <header>Watch Status</header>
+    {% if watches %}
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Last Check</th>
+                <th>Last Price</th>
+                <th>Total Records</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for w in watches %}
+            <tr>
+                <td>{{ w.type }}</td>
+                <td><strong>{{ w.name }}</strong></td>
+                <td>{{ w.last_check or 'Never' }}</td>
+                <td>{{ w.last_price or '—' }}</td>
+                <td>{{ w.total_records }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No active watches. Add a flight or hotel watch to start monitoring prices.</p>
+    {% endif %}
+</article>
+{% endblock %}

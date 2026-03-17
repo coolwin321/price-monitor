@@ -1,10 +1,9 @@
-import asyncio
 import threading
 
 from flask import Blueprint, jsonify
 
 from db.database import SessionLocal
-from db.models import FlightWatch, HotelWatch, PriceRecord, ScraperHealth
+from db.models import FlightWatch, HotelWatch, PriceRecord
 
 prices_bp = Blueprint("prices", __name__, url_prefix="/api")
 
@@ -17,7 +16,6 @@ def dashboard_summary():
         hotel_count = session.query(HotelWatch).filter_by(is_active=True).count()
         total_prices = session.query(PriceRecord).count()
 
-        # Get latest price per active flight watch
         flight_watches = session.query(FlightWatch).filter_by(is_active=True).all()
         flight_summaries = []
         for w in flight_watches:
@@ -61,30 +59,10 @@ def dashboard_summary():
         session.close()
 
 
-@prices_bp.route("/health", methods=["GET"])
-def scraper_health():
-    session = SessionLocal()
-    try:
-        healths = session.query(ScraperHealth).all()
-        return jsonify([
-            {
-                "scraper_name": h.scraper_name,
-                "last_success_at": h.last_success_at.isoformat() if h.last_success_at else None,
-                "last_failure_at": h.last_failure_at.isoformat() if h.last_failure_at else None,
-                "consecutive_failures": h.consecutive_failures,
-                "last_error": h.last_error,
-                "is_disabled": h.is_disabled,
-            }
-            for h in healths
-        ])
-    finally:
-        session.close()
-
-
 @prices_bp.route("/scrape-now/<watch_type>/<int:watch_id>", methods=["POST"])
 def scrape_now(watch_type, watch_id):
-    """Trigger an immediate scrape for a single watch."""
-    from scheduler.jobs import _run_single_flight_scrape, _run_single_hotel_scrape
+    """Trigger an immediate price check for a single watch."""
+    from scheduler.jobs import check_single_flight, check_single_hotel
 
     session = SessionLocal()
     try:
@@ -102,10 +80,10 @@ def scrape_now(watch_type, watch_id):
 
     def _run_in_background():
         if watch_type == "flight":
-            asyncio.run(_run_single_flight_scrape(watch_id))
+            check_single_flight(watch_id)
         else:
-            asyncio.run(_run_single_hotel_scrape(watch_id))
+            check_single_hotel(watch_id)
 
     thread = threading.Thread(target=_run_in_background, daemon=True)
     thread.start()
-    return jsonify({"status": "scrape started", "message": "Check back in ~30 seconds for results"})
+    return jsonify({"status": "check started", "message": "Check back in ~10 seconds for results"})
