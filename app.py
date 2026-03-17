@@ -213,19 +213,22 @@ def create_app():
 
 
 def start_scheduler():
+    from datetime import timedelta
     from scheduler.jobs import check_all_flights, check_all_hotels, health_check, cleanup_old_prices
 
     scheduler = BackgroundScheduler()
     interval = Config.SCRAPE_INTERVAL_HOURS
 
-    scheduler.add_job(check_all_flights, "interval", hours=interval, id="check_flights")
+    # next_run_time=now fires immediately on startup instead of waiting one full interval
+    scheduler.add_job(check_all_flights, "interval", hours=interval, id="check_flights",
+                      next_run_time=datetime.now())
     scheduler.add_job(check_all_hotels, "interval", hours=interval, id="check_hotels",
-                      start_date=datetime.now().replace(second=0) )
+                      next_run_time=datetime.now() + timedelta(minutes=2))
     scheduler.add_job(health_check, "interval", hours=1, id="health_check")
     scheduler.add_job(cleanup_old_prices, "cron", hour=3, id="cleanup")
 
     scheduler.start()
-    logger.info(f"Scheduler started: scraping every {interval} hours")
+    logger.info(f"Scheduler started: scraping every {interval}h. First flight check NOW, hotels in 2min.")
     return scheduler
 
 
