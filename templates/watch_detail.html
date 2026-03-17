@@ -41,6 +41,7 @@
             </label>
             <div class="grid">
                 <button type="submit">Update Threshold</button>
+                <button type="button" id="check-now-btn" class="secondary">Check Price Now</button>
                 <button type="button" id="toggle-btn" class="outline"
                     data-active="{{ 'true' if watch.is_active else 'false' }}">
                     {{ "Deactivate" if watch.is_active else "Activate" }}
@@ -91,6 +92,23 @@
     if (priceData.length > 0) {
         renderPriceChart('priceChart', priceData, {{ watch.threshold_price or 'null' }});
     }
+
+    document.getElementById('check-now-btn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('check-now-btn');
+        btn.disabled = true;
+        btn.textContent = 'Checking...';
+        btn.setAttribute('aria-busy', 'true');
+        const resp = await fetch(`/api/scrape-now/{{ watch_type }}/{{ watch.id }}`, { method: 'POST' });
+        if (resp.ok) {
+            btn.textContent = 'Started! Refreshing in 30s...';
+            btn.removeAttribute('aria-busy');
+            setTimeout(() => location.reload(), 30000);
+        } else {
+            btn.textContent = 'Failed';
+            btn.removeAttribute('aria-busy');
+            btn.disabled = false;
+        }
+    });
 
     document.getElementById('toggle-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('toggle-btn');

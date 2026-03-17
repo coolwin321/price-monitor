@@ -33,6 +33,7 @@
                         <td>{{ f.latest_source or '—' }}</td>
                         <td>
                             <a href="/watches/flight/{{ f.id }}" role="button" class="outline small">View</a>
+                            <button class="outline small check-now-btn" data-type="flight" data-id="{{ f.id }}">Check Now</button>
                             <button class="outline small delete-btn" data-type="flight" data-id="{{ f.id }}">Delete</button>
                         </td>
                     </tr>
@@ -76,6 +77,7 @@
                         <td>{{ h.latest_source or '—' }}</td>
                         <td>
                             <a href="/watches/hotel/{{ h.id }}" role="button" class="outline small">View</a>
+                            <button class="outline small check-now-btn" data-type="hotel" data-id="{{ h.id }}">Check Now</button>
                             <button class="outline small delete-btn" data-type="hotel" data-id="{{ h.id }}">Delete</button>
                         </td>
                     </tr>
@@ -92,6 +94,24 @@
 
 {% block scripts %}
 <script>
+document.querySelectorAll('.check-now-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Checking...';
+        btn.setAttribute('aria-busy', 'true');
+        const resp = await fetch(`/api/scrape-now/${btn.dataset.type}/${btn.dataset.id}`, { method: 'POST' });
+        if (resp.ok) {
+            btn.textContent = 'Started!';
+            btn.removeAttribute('aria-busy');
+            setTimeout(() => location.reload(), 30000);
+        } else {
+            btn.textContent = 'Failed';
+            btn.removeAttribute('aria-busy');
+            btn.disabled = false;
+        }
+    });
+});
+
 document.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         if (!confirm('Deactivate this watch?')) return;

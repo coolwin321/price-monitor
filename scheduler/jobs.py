@@ -222,6 +222,111 @@ async def _run_hotel_scrapes():
             await browser.close()
 
 
+async def _run_single_flight_scrape(watch_id: int):
+    """Scrape a single flight watch immediately."""
+    session = SessionLocal()
+    try:
+        w = session.query(FlightWatch).get(watch_id)
+        if not w or not w.is_active:
+            return {"status": "error", "message": "Watch not found or inactive"}
+        watch_data = (w.id, w.origin, w.destination, str(w.departure_date),
+                      str(w.return_date) if w.return_date else None,
+                      w.threshold_price, w.currency, w.return_date)
+    finally:
+        session.close()
+
+    from scrapers.utils import can_scrape
+    from alerts.telegram import evaluate_and_alert_flight
+    from playwright.async_api import async_playwright
+
+    wid, origin, dest, dep, ret, threshold, currency, return_date_obj = watch_data
+    total_results = 0
+
+    async with async_playwright() as p:
+        browser, context = await _create_browser_context(p)
+        try:
+            for scraper in _get_flight_scrapers():
+                if _is_scraper_disabled(scraper.SCRAPER_NAME):
+                    continue
+                try:
+                    results = await scraper.scrape_flight(
+                        origin, dest, dep, ret, browser_context=context,
+                    )
+                    if results:
+                        _store_prices("flight", wid, results)
+                        _update_scraper_health(scraper.SCRAPER_NAME, success=True)
+                        total_results += len(results)
+                        cheapest = min(results, key=lambda r: r.price)
+                        class WatchProxy:
+                            pass
+                        wp = WatchProxy()
+                        wp.id, wp.origin, wp.destination = wid, origin, dest
+                        wp.departure_date, wp.return_date = dep, return_date_obj
+                        wp.threshold_price, wp.currency = threshold, currency
+                        await evaluate_and_alert_flight(wp, cheapest)
+                    else:
+                        _update_scraper_health(scraper.SCRAPER_NAME, success=False, error="No results returned")
+                except Exception as e:
+                    _update_scraper_health(scraper.SCRAPER_NAME, success=False, error=str(e))
+                await asyncio.sleep(random.uniform(5, 15))
+        finally:
+            await browser.close()
+
+    return {"status": "ok", "results": total_results}
+
+
+async def _run_single_hotel_scrape(watch_id: int):
+    """Scrape a single hotel watch immediately."""
+    session = SessionLocal()
+    try:
+        w = session.query(HotelWatch).get(watch_id)
+        if not w or not w.is_active:
+            return {"status": "error", "message": "Watch not found or inactive"}
+        watch_data = (w.id, w.hotel_name, w.location, str(w.checkin_date),
+                      str(w.checkout_date), w.threshold_price, w.currency)
+    finally:
+        session.close()
+
+    from scrapers.utils import can_scrape
+    from alerts.telegram import evaluate_and_alert_hotel
+    from playwright.async_api import async_playwright
+
+    wid, name, loc, checkin, checkout, threshold, currency = watch_data
+    total_results = 0
+
+    async with async_playwright() as p:
+        browser, context = await _create_browser_context(p)
+        try:
+            for scraper in _get_hotel_scrapers():
+                if _is_scraper_disabled(scraper.SCRAPER_NAME):
+                    continue
+                try:
+                    results = await scraper.scrape_hotel(
+                        name, loc, checkin, checkout, browser_context=context,
+                    )
+                    if results:
+                        _store_prices("hotel", wid, results)
+                        _update_scraper_health(scraper.SCRAPER_NAME, success=True)
+                        total_results += len(results)
+                        cheapest = min(results, key=lambda r: r.price)
+                        class WatchProxy:
+                            pass
+                        wp = WatchProxy()
+                        wp.id, wp.hotel_name, wp.location = wid, name, loc
+                        wp.checkin_date, wp.checkout_date = checkin, checkout
+                        wp.threshold_price, wp.currency = threshold, currency
+                        await evaluate_and_alert_hotel(wp, cheapest)
+                    else:
+                        _update_scraper_health(scraper.SCRAPER_NAME, success=False, error="No results returned")
+                except Exception as e:
+                    _update_scraper_health(scraper.SCRAPER_NAME, success=False, error=str(e))
+                await asyncio.sleep(random.uniform(5, 15))
+        finally:
+            await browser.close()
+
+    return {"status": "ok", "results": total_results}
+
+
 def check_all_flights():
     """Entry point for APScheduler."""
     logger.info("Starting flight price check...")

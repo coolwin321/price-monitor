@@ -1,4 +1,5 @@
 import asyncio
+import threading
 
 from flask import Blueprint, jsonify
 
@@ -82,8 +83,8 @@ def scraper_health():
 
 @prices_bp.route("/scrape-now/<watch_type>/<int:watch_id>", methods=["POST"])
 def scrape_now(watch_type, watch_id):
-    """Trigger an immediate scrape for debugging."""
-    from scheduler.jobs import _run_flight_scrapes, _run_hotel_scrapes
+    """Trigger an immediate scrape for a single watch."""
+    from scheduler.jobs import _run_single_flight_scrape, _run_single_hotel_scrape
 
     session = SessionLocal()
     try:
@@ -99,11 +100,12 @@ def scrape_now(watch_type, watch_id):
     finally:
         session.close()
 
-    try:
+    def _run_in_background():
         if watch_type == "flight":
-            asyncio.run(_run_flight_scrapes())
+            asyncio.run(_run_single_flight_scrape(watch_id))
         else:
-            asyncio.run(_run_hotel_scrapes())
-        return jsonify({"status": "scrape triggered"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            asyncio.run(_run_single_hotel_scrape(watch_id))
+
+    thread = threading.Thread(target=_run_in_background, daemon=True)
+    thread.start()
+    return jsonify({"status": "scrape started", "message": "Check back in ~30 seconds for results"})
